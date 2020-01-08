@@ -1,7 +1,7 @@
-import axios, { AxiosPromise } from "axios";
+import axios from "axios";
 import { useState } from "react";
-import { Movie, SearchResults } from "../types";
-import { omdbClient } from "../networkApis/omdbApi";
+import { Movie } from "../types";
+import { getMovieById, getMovies, abortSearch } from "../networkApis/omdbApi";
 
 const MAX_RESULTS = 5;
 
@@ -12,31 +12,26 @@ export const useMoviesSearch = () => {
 
   const getMoviesByTitle = async (title: string) => {
     try {
+      abortSearch();
       setIsLoading(true);
-      
-      const { data } = await omdbClient.get<SearchResults>("", {
-        params: {
-          s: title,
-          page: 1
-        }
-      });
-      let promises: AxiosPromise<Movie>[] = [];
-      for (let i = 0; i < Math.min(+data.totalResults, MAX_RESULTS); i++) {
-        let promise = omdbClient.get<Movie>("", {
-          params: {
-            i: data.Search[i].imdbID
-          }
-        });
+      const data = await getMovies(title);
+      let promises: Promise<Movie>[] = [];
+      for (let i = 0; i < Math.min(data && +data.totalResults, MAX_RESULTS); i++) {
+        let promise = getMovieById(data.Search[i].imdbID);
         promises.push(promise);
       }
 
       const moviesRes = await axios.all(promises);
       setIsLoading(false);
-      setMovies(moviesRes.map(movieRes => movieRes.data));
+      setMovies(moviesRes);
     } catch (err) {
+      if(err.name === 'AbortError') {
+        console.error("aborted")
+      }else{
         setIsLoading(false);
-        setError(err.message);
+        setError(err);
+      }
     }
   };
-  return { getMoviesByTitle, movies, setMovies, isLoading, error };
+  return { getMoviesByTitle, movies, setMovies, isLoading, error, abortSearch };
 };

@@ -16,21 +16,29 @@ const App: React.FC = () => {
     movies,
     setMovies,
     isLoading,
-    error
+    error,
+    abortSearch
   } = useMoviesSearch();
   const [openingTime, setOpeningTime] = useState("08:00");
   const [closingTime, setClosingTime] = useState("23:30");
   const [selectedVideo, setSelectedVideo] = React.useState();
 
-  const searchMovie = debounce(getMoviesByTitle, 300);
-  const onInputChange = async (title: string) => {
+  const searchMovie = async (title: string) => {
     if (title.length >= MIN_SEARCH_LENGTH) {
-      await searchMovie(title);
+
+      await getMoviesByTitle(title);
     } else {
+      abortSearch();
       setMovies([]);
     }
-    setInputValue(title);
   };
+
+  const onInputChange = (title: string) => {
+    setInputValue(title);
+    searchMovieDebounced(title);
+  }
+
+  const searchMovieDebounced = React.useCallback(debounce(searchMovie, 300),[]);
 
   const handleVideoClicked = async (title: string) => {
     const video = await getVideoDataByTitle(title);
